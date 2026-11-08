@@ -3,10 +3,13 @@ import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import { DashboardHome } from './pages/Dashboard'
 import DatasetsPage from './pages/datasets/DatasetsPage'
+import ScrollToTop from './components/ScrollToTop'
 
 function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       {/* Public landing page */}
       <Route path="/" element={<Landing />} />
 
@@ -30,6 +33,7 @@ function App() {
         {/* <Route path="settings"   element={<SettingsPage />} /> */}
       </Route>
     </Routes>
+    </>
   )
 }
 

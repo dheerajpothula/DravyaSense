@@ -184,7 +184,7 @@ export default function Dashboard() {
 
         {/* ── Main content ───────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto">
-          <div className="px-8 lg:px-12 py-10 max-w-5xl">
+          <div className="px-8 lg:px-12 xl:px-16 py-10">
 
             {/* ── Page header ──────────────────────────────── */}
             <div className="mb-10 pb-8 border-b border-surface-border">
@@ -225,8 +225,7 @@ export default function Dashboard() {
                 <LegendItem status="planned"        label="Planned" />
               </div>
 
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-px
-                              border border-surface-border bg-surface-border">
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {MODULES.map((mod) => (
                   <ModuleCard key={mod.id} mod={mod} />
                 ))}
@@ -377,7 +376,7 @@ function SidebarItem({ mod }: { mod: Module }) {
 
 function ModuleCard({ mod }: { mod: Module }) {
   return (
-    <div className="bg-brand-white p-6 flex flex-col gap-3">
+    <div className="bg-brand-white border border-surface-border p-6 flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <span className="font-mono text-[10px] text-text-muted">{mod.id}</span>
         <StatusPill status={mod.status} />

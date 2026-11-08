@@ -11,6 +11,7 @@ import BotanicalIllustration from '../components/BotanicalIllustration'
 export default function Landing() {
   const methodologyRef = useRef<HTMLElement>(null)
   const researchRef    = useRef<HTMLElement>(null)
+  const aboutRef       = useRef<HTMLElement>(null)
 
   const scrollTo = (ref: React.RefObject<HTMLElement | null>) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -44,7 +45,7 @@ export default function Landing() {
                 { label: 'Home',        action: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
                 { label: 'Research',    action: () => scrollTo(researchRef) },
                 { label: 'Methodology', action: () => scrollTo(methodologyRef) },
-                { label: 'About',       action: () => scrollTo(methodologyRef) },
+                { label: 'About',       action: () => scrollTo(aboutRef) },
               ].map(({ label, action }) => (
                 <li key={label}>
                   <button
@@ -276,6 +277,86 @@ export default function Landing() {
           {FEATURES.map((feat) => (
             <FeatureCard key={feat.title} {...feat} />
           ))}
+        </div>
+      </section>
+
+
+      {/* ════════════════════════════════════════════════════════
+          DIVIDER
+      ════════════════════════════════════════════════════════ */}
+      <div className="container-editorial">
+        <div className="divider" />
+      </div>
+
+
+      {/* ════════════════════════════════════════════════════════
+          ABOUT
+      ════════════════════════════════════════════════════════ */}
+      <section ref={aboutRef} id="about"
+               className="container-editorial py-section scroll-mt-20">
+        <div className="grid lg:grid-cols-12 gap-12">
+
+          {/* Left label */}
+          <div className="lg:col-span-3">
+            <p className="eyebrow sticky top-24">
+              <span className="w-6 h-px bg-text-muted inline-block" />
+              About
+            </p>
+          </div>
+
+          {/* Right content */}
+          <div className="lg:col-span-9">
+            <h2 className="font-serif text-display-md text-text-primary mb-8 leading-tight">
+              A research tool for herbal science
+            </h2>
+
+            <div className="grid md:grid-cols-2 gap-x-12 gap-y-6 text-text-secondary
+                            text-base leading-relaxed mb-10">
+              <p>
+                DravyaSense was developed as part of an investigation into whether
+                electronic-tongue technology can reproducibly distinguish between
+                traditional Ayurvedic herb categories — <em>Dravya</em> — based on
+                taste-profile data alone, without human sensory panels.
+              </p>
+              <p>
+                The platform applies only unsupervised machine learning methods.
+                PCA and t-SNE operate entirely on sensor feature columns. Category
+                labels, when present, are used exclusively for post-hoc evaluation
+                of cluster quality — never to guide the reduction algorithm.
+              </p>
+              <p>
+                The pipeline is designed for full reproducibility. Every experiment
+                records its preprocessing configuration, algorithm parameters, and
+                random seed. Results can be re-generated at any time from the
+                Experiment History module.
+              </p>
+              <p>
+                DravyaSense is an open research build. All source code is version-
+                controlled. No result is displayed unless it is computed from data
+                you have uploaded in the current session.
+              </p>
+            </div>
+
+            {/* Technology strip */}
+            <div className="border-t border-surface-border pt-8">
+              <p className="text-xs text-text-muted tracking-[0.12em] uppercase mb-5">
+                Built with
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  'React 18', 'TypeScript', 'Vite', 'Tailwind CSS', 'Plotly.js',
+                  'FastAPI', 'Python 3.13', 'scikit-learn', 'pandas', 'SQLite',
+                ].map((tech) => (
+                  <span key={tech}
+                        className="px-3 py-1 text-xs font-medium text-text-secondary
+                                   border border-surface-border bg-surface-raised
+                                   rounded-sm font-mono">
+                    {tech}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

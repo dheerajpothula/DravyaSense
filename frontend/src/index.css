@@ -2,34 +2,118 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Base resets ───────────────────────────────────────────────── */
+/* Fonts are loaded via <link> in index.html (Inter + Playfair Display) */
+
+/* ── Base layer ───────────────────────────────────────────────── */
 @layer base {
   html {
-    @apply bg-surface-950 text-ink-100 antialiased;
+    @apply bg-brand-mint text-text-primary antialiased scroll-smooth;
     font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  body {
+    @apply bg-brand-mint;
   }
 
   * {
     box-sizing: border-box;
   }
 
+  h1, h2, h3, h4 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+
+  /* Light scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
-
   ::-webkit-scrollbar-track {
-    @apply bg-surface-900;
+    @apply bg-sage-100;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-sage-300 rounded-full;
   }
 
-  ::-webkit-scrollbar-thumb {
-    @apply bg-surface-600 rounded-full;
+  /* Selection highlight */
+  ::selection {
+    @apply bg-forest-800 text-brand-mint;
   }
 }
 
-/* ── Utility layer additions ───────────────────────────────────── */
+/* ── Component layer — reusable primitives ────────────────────── */
+@layer components {
+
+  /* ── Buttons ─────────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-sm
+           bg-forest-900 text-text-inverse text-sm font-medium tracking-wide
+           shadow-btn transition-all duration-200 ease-editorial
+           hover:bg-forest-800 hover:shadow-card-hover
+           active:scale-[0.98] focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-forest-900 focus-visible:ring-offset-2
+           focus-visible:ring-offset-brand-mint;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-6 py-3 rounded-sm
+           bg-transparent text-text-primary text-sm font-medium tracking-wide
+           border border-forest-900/30
+           transition-all duration-200 ease-editorial
+           hover:border-forest-900 hover:bg-forest-900/5
+           active:scale-[0.98] focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-forest-900 focus-visible:ring-offset-2;
+  }
+
+  .btn-nav {
+    @apply inline-flex items-center gap-2 px-5 py-2.5 rounded-sm
+           bg-forest-900 text-text-inverse text-sm font-medium tracking-wide
+           transition-all duration-200 ease-editorial
+           hover:bg-forest-800 active:scale-[0.98];
+  }
+
+  /* ── Section container ───────────────────────────────────── */
+  .container-editorial {
+    @apply mx-auto max-w-7xl px-6 lg:px-12;
+  }
+
+  /* ── Divider line ─────────────────────────────────────────── */
+  .divider {
+    @apply h-px w-full bg-surface-border;
+  }
+
+  /* ── Eyebrow label ─────────────────────────────────────────── */
+  .eyebrow {
+    @apply inline-flex items-center gap-2 text-xs font-medium tracking-[0.15em]
+           uppercase text-text-muted;
+  }
+
+  /* ── Feature card ─────────────────────────────────────────── */
+  .feature-card {
+    @apply bg-surface-raised border border-surface-border p-8
+           transition-all duration-300 ease-editorial
+           hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+}
+
+/* ── Utility layer ────────────────────────────────────────────── */
 @layer utilities {
-  .text-gradient-teal {
-    @apply bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent;
+  /* Stagger animation delays */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+
+  /* Subtle underline link */
+  .link-underline {
+    @apply relative after:absolute after:bottom-0 after:left-0 after:h-px
+           after:w-0 after:bg-current after:transition-all after:duration-300
+           hover:after:w-full;
+  }
+
+  /* Vertical rule */
+  .v-rule {
+    @apply w-px self-stretch bg-surface-border;
   }
 }

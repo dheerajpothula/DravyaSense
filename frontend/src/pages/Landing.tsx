@@ -133,12 +133,21 @@ export default function Landing() {
                             border border-surface-border">
               <BotanicalIllustration className="w-full h-auto" />
 
-              {/* Floating annotation */}
-              <div className="absolute bottom-4 right-4 bg-brand-white/90 backdrop-blur-sm
-                              border border-surface-border rounded-sm px-3 py-2 shadow-card">
-                <p className="text-[10px] text-text-muted font-mono tracking-widest uppercase">
-                  Sensor Scatter · PCA Space
+              {/* Illustration disclaimer */}
+              <div className="absolute bottom-0 left-0 right-0
+                              bg-brand-white/95 backdrop-blur-sm
+                              border-t border-surface-border px-4 py-2.5
+                              flex items-center justify-between gap-4">
+                <p className="text-[10px] text-text-muted font-mono tracking-wide leading-relaxed">
+                  Conceptual illustration — not derived from experimental data.
+                  Leaf motifs represent herbal samples; scatter nodes represent
+                  sensor readings in reduced-dimensional space.
                 </p>
+                <span className="shrink-0 inline-flex items-center px-2 py-0.5 text-[9px]
+                                 font-medium tracking-wider uppercase rounded-sm
+                                 bg-sage-200 text-forest-800 border border-sage-400">
+                  Illustrative
+                </span>
               </div>
             </div>
 
@@ -202,6 +211,24 @@ export default function Landing() {
                 Separation metrics (silhouette score, Davies-Bouldin index) are
                 computed on request. They quantify clustering quality honestly —
                 flagged clearly as label-assisted evaluation, not unsupervised proof.
+              </p>
+            </div>
+
+            {/* Label-exclusion notice */}
+            <div className="mt-8 flex items-start gap-3 px-5 py-4
+                            border border-sage-300 bg-sage-100/60">
+              <svg viewBox="0 0 12 12" fill="none" className="w-3.5 h-3.5 shrink-0 mt-0.5
+                   text-forest-800" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M1 1h4.5L11 6.5 6.5 11 1 5.5V1z" stroke="currentColor"
+                      strokeWidth="1.2" strokeLinejoin="round"/>
+                <circle cx="3.5" cy="3.5" r="0.75" fill="currentColor"/>
+              </svg>
+              <p className="text-sm text-forest-800 leading-relaxed">
+                <span className="font-semibold">Category labels are never inputs to PCA or t-SNE.</span>
+                {' '}Both algorithms fit on sensor feature columns only. Labels are
+                carried as metadata throughout the pipeline and used exclusively
+                for post-analysis evaluation — when you choose to assess how well
+                known categories cluster in the resulting embedding.
               </p>
             </div>
 

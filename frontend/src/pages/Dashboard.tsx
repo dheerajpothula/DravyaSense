@@ -1,225 +1,487 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 /**
- * Dashboard — Application workspace entry point.
+ * Dashboard — Application workspace shell.
  *
- * This is the platform shell that all analysis modules will live inside.
- * Currently shows a clean empty state while modules are being built.
- * No fake data, no placeholder charts.
+ * Layout: full-viewport, collapsible left sidebar + scrollable main content.
+ * No fake data. All modules show their true build status.
+ * Upload action is locked until the Dataset module is implemented.
  */
 
-const UPCOMING_MODULES = [
-  { id: '01', label: 'Dataset Management',     status: 'next',     path: '/dashboard/datasets' },
-  { id: '02', label: 'Preprocessing Studio',   status: 'upcoming', path: '/dashboard/preprocess' },
-  { id: '03', label: 'PCA Analysis',           status: 'upcoming', path: '/dashboard/pca' },
-  { id: '04', label: 't-SNE Analysis',         status: 'upcoming', path: '/dashboard/tsne' },
-  { id: '05', label: 'PCA vs t-SNE',           status: 'upcoming', path: '/dashboard/compare' },
-  { id: '06', label: 'Category Separation',    status: 'upcoming', path: '/dashboard/evaluation' },
-  { id: '07', label: 'Experiment History',     status: 'upcoming', path: '/dashboard/history' },
-  { id: '08', label: 'Research Insights',      status: 'upcoming', path: '/dashboard/insights' },
-] as const
+/* ─────────────────────────────────────────────────────────────────
+   Module registry
+   status values:
+     'available'     — implemented and usable
+     'in-development'— being built in the current sprint
+     'planned'       — designed but not yet started
+───────────────────────────────────────────────────────────────── */
+type ModuleStatus = 'available' | 'in-development' | 'planned'
 
-type ModuleStatus = 'next' | 'upcoming'
+interface Module {
+  id:     string
+  label:  string
+  desc:   string
+  status: ModuleStatus
+  path:   string
+  group:  'data' | 'analysis' | 'evaluation' | 'reporting'
+}
 
+const MODULES: Module[] = [
+  {
+    id: '01', label: 'Dataset Management',
+    desc:   'Upload CSV/Excel sensor files, inspect schema, tag column types.',
+    status: 'in-development', path: '/dashboard/datasets', group: 'data',
+  },
+  {
+    id: '02', label: 'Data Explorer',
+    desc:   'Preview raw data, descriptive statistics, distribution plots.',
+    status: 'in-development', path: '/dashboard/explorer', group: 'data',
+  },
+  {
+    id: '03', label: 'Preprocessing Studio',
+    desc:   'Configure scaling, imputation and outlier handling per experiment.',
+    status: 'planned', path: '/dashboard/preprocess', group: 'data',
+  },
+  {
+    id: '04', label: 'PCA Analysis',
+    desc:   'Run PCA, inspect explained variance, component loadings and scatter.',
+    status: 'planned', path: '/dashboard/pca', group: 'analysis',
+  },
+  {
+    id: '05', label: 't-SNE Analysis',
+    desc:   'Configure perplexity, learning rate and seed; explore 2D/3D embeddings.',
+    status: 'planned', path: '/dashboard/tsne', group: 'analysis',
+  },
+  {
+    id: '06', label: 'PCA vs t-SNE',
+    desc:   'Side-by-side synchronized comparison of both projections.',
+    status: 'planned', path: '/dashboard/compare', group: 'analysis',
+  },
+  {
+    id: '07', label: 'Category Separation',
+    desc:   'Silhouette score, Davies-Bouldin index — label-assisted evaluation only.',
+    status: 'planned', path: '/dashboard/evaluation', group: 'evaluation',
+  },
+  {
+    id: '08', label: 'Experiment History',
+    desc:   'Browse, re-run and compare all past analysis experiments.',
+    status: 'planned', path: '/dashboard/history', group: 'reporting',
+  },
+  {
+    id: '09', label: 'Research Insights',
+    desc:   'Automated narrative summary of experiment findings.',
+    status: 'planned', path: '/dashboard/insights', group: 'reporting',
+  },
+  {
+    id: '10', label: 'Settings',
+    desc:   'Platform preferences, default parameters, data retention.',
+    status: 'planned', path: '/dashboard/settings', group: 'reporting',
+  },
+]
+
+const NAV_GROUPS: { key: Module['group']; label: string }[] = [
+  { key: 'data',       label: 'Data' },
+  { key: 'analysis',   label: 'Analysis' },
+  { key: 'evaluation', label: 'Evaluation' },
+  { key: 'reporting',  label: 'Reporting' },
+]
+
+/* ─────────────────────────────────────────────────────────────────
+   Component
+───────────────────────────────────────────────────────────────── */
 export default function Dashboard() {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+
   return (
     <div className="min-h-screen bg-brand-mint text-text-primary flex flex-col">
 
-      {/* ── Top bar ─────────────────────────────────────────── */}
-      <header className="bg-brand-white border-b border-surface-border">
-        <div className="container-editorial">
-          <div className="flex items-center justify-between h-14">
+      {/* ════════════════════════════════════════════════════════
+          TOP BAR
+      ════════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-40 bg-brand-white border-b border-surface-border h-12 flex items-center shrink-0">
+        <div className="w-full flex items-center px-4 gap-4">
 
-            {/* Brand */}
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 bg-forest-900 flex items-center justify-center rounded-sm">
-                <span className="text-text-inverse text-[10px] font-bold tracking-wider">DS</span>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-sm font-semibold text-text-primary">DravyaSense</span>
-                <span className="text-xs text-text-muted">/ Platform</span>
-              </div>
+          {/* Sidebar toggle */}
+          <button
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="p-1.5 rounded-sm hover:bg-surface-overlay transition-colors duration-150
+                       text-text-muted hover:text-text-primary"
+            aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            <SidebarIcon className="w-4 h-4" />
+          </button>
+
+          {/* Vertical rule */}
+          <div className="w-px h-5 bg-surface-border" />
+
+          {/* Brand */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 bg-forest-900 flex items-center justify-center rounded-sm shrink-0">
+              <span className="text-text-inverse text-[9px] font-bold tracking-wider select-none">DS</span>
             </div>
-
-            {/* Back to site */}
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-sm text-text-secondary
-                         hover:text-text-primary transition-colors duration-200"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              Back to Site
-            </Link>
+            <span className="text-sm font-semibold text-text-primary">DravyaSense</span>
+            <span className="text-text-muted text-sm select-none">/</span>
+            <span className="text-sm text-text-muted">Platform</span>
           </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Back to site */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs text-text-muted
+                       hover:text-text-primary transition-colors duration-200"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            Back to Site
+          </Link>
         </div>
       </header>
 
-      {/* ── Main content ─────────────────────────────────────── */}
-      <main className="flex-1 container-editorial py-16">
 
-        {/* Page heading */}
-        <div className="mb-14 max-w-xl">
-          <p className="eyebrow mb-4">
-            <span className="w-6 h-px bg-text-muted inline-block" />
-            Research Workspace
-          </p>
-          <h1 className="font-serif text-display-md text-text-primary mb-4 leading-tight">
-            Electronic-Tongue Analytics
-          </h1>
-          <p className="text-text-secondary text-base leading-relaxed">
-            Upload your sensor dataset to begin. Each module becomes available
-            after the previous step is complete — from raw data upload through
-            PCA, t-SNE, and category separation evaluation.
-          </p>
-        </div>
+      {/* ════════════════════════════════════════════════════════
+          BODY — sidebar + content
+      ════════════════════════════════════════════════════════ */}
+      <div className="flex flex-1 overflow-hidden">
 
-        {/* ── Module grid ───────────────────────────────────── */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-px border border-surface-border
-                        bg-surface-border mb-14">
-          {UPCOMING_MODULES.map((mod) => (
-            <ModuleCard key={mod.id} {...mod} />
-          ))}
-        </div>
+        {/* ── Sidebar ────────────────────────────────────────── */}
+        <aside
+          className={`
+            shrink-0 bg-brand-white border-r border-surface-border
+            flex flex-col overflow-y-auto overflow-x-hidden
+            transition-all duration-200 ease-in-out
+            ${sidebarOpen ? 'w-56' : 'w-0 border-r-0'}
+          `}
+          aria-hidden={!sidebarOpen}
+        >
+          {/* Inner — hidden via overflow when width = 0 */}
+          <div className="min-w-[14rem] flex flex-col flex-1 py-4">
 
-        {/* ── Getting started callout ───────────────────────── */}
-        <div className="border border-surface-border bg-brand-white p-10 max-w-2xl">
-          <div className="flex items-start gap-6">
-            <div className="w-10 h-10 bg-forest-900 rounded-sm flex items-center
-                            justify-center shrink-0 mt-0.5">
-              <UploadIcon className="w-4 h-4 text-text-inverse" />
+            {/* Nav groups */}
+            {NAV_GROUPS.map((group) => {
+              const items = MODULES.filter((m) => m.group === group.key)
+              return (
+                <div key={group.key} className="mb-4">
+                  <p className="px-4 mb-1 text-[10px] font-medium tracking-[0.12em]
+                                uppercase text-text-muted">
+                    {group.label}
+                  </p>
+                  {items.map((mod) => (
+                    <SidebarItem key={mod.id} mod={mod} />
+                  ))}
+                </div>
+              )
+            })}
+
+            {/* Spacer + version */}
+            <div className="mt-auto px-4 pt-4 border-t border-surface-border">
+              <p className="text-[10px] text-text-muted font-mono">v0.1.0 · Research Build</p>
             </div>
-            <div>
-              <h2 className="font-serif text-xl text-text-primary mb-2">
-                Start with your dataset
-              </h2>
-              <p className="text-text-secondary text-sm leading-relaxed mb-5">
-                Upload a CSV or Excel file containing your electronic-tongue sensor
-                readings. The platform will automatically detect sensor columns,
-                sample identifiers, and category labels — keeping labels strictly
-                separate from the feature matrix.
+          </div>
+        </aside>
+
+        {/* ── Main content ───────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="px-8 lg:px-12 py-10 max-w-5xl">
+
+            {/* ── Page header ──────────────────────────────── */}
+            <div className="mb-10 pb-8 border-b border-surface-border">
+              <p className="eyebrow mb-3">
+                <span className="w-5 h-px bg-text-muted inline-block" />
+                Research Workspace
               </p>
-              <div className="flex gap-3">
-                <button
-                  disabled
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-forest-900
-                             text-text-inverse text-sm font-medium rounded-sm
-                             opacity-40 cursor-not-allowed"
-                  title="Dataset module coming in Day 2"
-                >
-                  Upload Dataset
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-                <span className="inline-flex items-center px-3 py-2 text-xs text-text-muted
-                                 border border-surface-border rounded-sm font-mono">
-                  Module in development
-                </span>
+              <h1 className="font-serif text-display-sm text-text-primary mb-3 leading-tight">
+                Electronic-Tongue Analytics
+              </h1>
+              <p className="text-text-secondary text-sm leading-relaxed max-w-xl">
+                Upload your sensor dataset to begin. Modules unlock sequentially —
+                preprocessing requires a loaded dataset, analysis requires preprocessed
+                data, and evaluation requires a completed embedding run.
+              </p>
+            </div>
+
+            {/* ── Build status notice ───────────────────────── */}
+            <div className="mb-10 flex items-start gap-3 px-5 py-4
+                            bg-surface-overlay border border-surface-border rounded-sm">
+              <InfoIcon className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
+              <p className="text-sm text-text-secondary leading-relaxed">
+                <span className="font-medium text-text-primary">Platform under active development.</span>
+                {' '}Dataset Management and Data Explorer are being built next.
+                All other modules are designed and planned. No features are hidden
+                behind authentication — everything will be accessible from this workspace.
+              </p>
+            </div>
+
+            {/* ── Module status grid ────────────────────────── */}
+            <div className="mb-12">
+              <h2 className="font-serif text-lg text-text-primary mb-5">Module Status</h2>
+
+              {/* Legend */}
+              <div className="flex flex-wrap gap-4 mb-6">
+                <LegendItem status="available"      label="Available" />
+                <LegendItem status="in-development" label="In Development" />
+                <LegendItem status="planned"        label="Planned" />
+              </div>
+
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-px
+                              border border-surface-border bg-surface-border">
+                {MODULES.map((mod) => (
+                  <ModuleCard key={mod.id} mod={mod} />
+                ))}
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* ── Pipeline overview ─────────────────────────────── */}
-        <div className="mt-14">
-          <p className="eyebrow mb-8">
-            <span className="w-6 h-px bg-text-muted inline-block" />
-            Analysis Pipeline
-          </p>
-
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-0
-                          border border-surface-border bg-brand-white overflow-hidden">
-            {PIPELINE_STEPS.map((step, i) => (
-              <div key={step.label}
-                   className="flex-1 flex items-center gap-3 px-6 py-5
-                              border-b md:border-b-0 md:border-r border-surface-border last:border-0">
-                <span className="font-mono text-xs text-text-muted shrink-0">{String(i + 1).padStart(2, '0')}</span>
-                <div className="w-px h-6 bg-surface-border shrink-0" />
-                <span className="text-sm text-text-secondary">{step.label}</span>
+            {/* ── Getting started ───────────────────────────── */}
+            <div className="mb-12 border border-surface-border bg-brand-white">
+              <div className="px-8 py-6 border-b border-surface-border">
+                <h2 className="font-serif text-lg text-text-primary">Getting Started</h2>
               </div>
-            ))}
-          </div>
-        </div>
+              <div className="px-8 py-6">
+                <div className="flex items-start gap-5">
+                  <div className="w-9 h-9 bg-forest-900 rounded-sm flex items-center
+                                  justify-center shrink-0 mt-0.5">
+                    <UploadIcon className="w-4 h-4 text-text-inverse" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-text-primary mb-1.5">
+                      Step 1 — Upload your sensor dataset
+                    </h3>
+                    <p className="text-text-secondary text-sm leading-relaxed mb-4 max-w-lg">
+                      Prepare a CSV or Excel file with one row per sample. Sensor
+                      channels go in numeric columns. A sample-ID column and an
+                      optional category-label column may be present — the platform
+                      detects and isolates them automatically, ensuring they never
+                      enter the feature matrix.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <button
+                        disabled
+                        title="Dataset Management module is in development"
+                        className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium
+                                   bg-surface-border text-text-muted rounded-sm cursor-not-allowed
+                                   border border-surface-border select-none"
+                        aria-disabled="true"
+                      >
+                        <UploadIcon className="w-3.5 h-3.5" />
+                        Upload Dataset
+                      </button>
+                      <StatusPill status="in-development" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-      </main>
+            {/* ── Analysis pipeline ─────────────────────────── */}
+            <div className="mb-12">
+              <h2 className="font-serif text-lg text-text-primary mb-5">
+                Analysis Pipeline
+              </h2>
+              <p className="text-sm text-text-secondary mb-6 max-w-xl">
+                The workflow is linear by design — each stage feeds the next.
+                Category labels are carried as metadata throughout and are used
+                exclusively for post-analysis evaluation, never as inputs to
+                the PCA or t-SNE fitting step.
+              </p>
 
-      {/* ── Footer strip ─────────────────────────────────────── */}
-      <footer className="border-t border-surface-border bg-brand-white">
-        <div className="container-editorial py-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-text-muted">
-              DravyaSense Platform · Research Build v0.1.0
-            </p>
-            <p className="text-xs text-text-muted font-mono">
-              Unsupervised ML · No fabricated results
-            </p>
+              <div className="border border-surface-border bg-brand-white overflow-hidden">
+                {PIPELINE_STAGES.map((stage, i) => (
+                  <PipelineRow key={stage.label} stage={stage} index={i}
+                               isLast={i === PIPELINE_STAGES.length - 1} />
+                ))}
+              </div>
+            </div>
+
           </div>
-        </div>
+        </main>
+      </div>
+
+      {/* ════════════════════════════════════════════════════════
+          STATUS BAR
+      ════════════════════════════════════════════════════════ */}
+      <footer className="shrink-0 h-8 bg-brand-white border-t border-surface-border
+                         flex items-center px-5 gap-4">
+        <span className="text-[10px] text-text-muted font-mono">
+          DravyaSense Platform · v0.1.0
+        </span>
+        <div className="w-px h-3 bg-surface-border" />
+        <span className="text-[10px] text-text-muted">
+          Unsupervised ML · All results derived from uploaded data
+        </span>
       </footer>
+
     </div>
   )
 }
 
-/* ── Sub-components ─────────────────────────────────────────── */
 
-function ModuleCard({
-  id, label, status,
-}: { id: string; label: string; status: ModuleStatus; path: string }) {
+/* ─────────────────────────────────────────────────────────────────
+   Data
+───────────────────────────────────────────────────────────────── */
+const PIPELINE_STAGES = [
+  {
+    step:  '01',
+    label: 'Upload Dataset',
+    note:  'CSV / Excel sensor readings. Sample IDs and category labels detected and isolated as metadata.',
+    labelNote: null,
+  },
+  {
+    step:  '02',
+    label: 'Preprocessing',
+    note:  'Scaling (Standard / MinMax / Robust), missing-value imputation, outlier detection — applied to sensor features only.',
+    labelNote: null,
+  },
+  {
+    step:  '03',
+    label: 'PCA',
+    note:  'Fitted on the preprocessed sensor feature matrix. Category labels are not passed to the algorithm.',
+    labelNote: 'Labels excluded from fit',
+  },
+  {
+    step:  '04',
+    label: 't-SNE',
+    note:  'Runs on preprocessed features or PCA output. Fully configurable seed for reproducibility.',
+    labelNote: 'Labels excluded from fit',
+  },
+  {
+    step:  '05',
+    label: 'Evaluation',
+    note:  'Silhouette score and Davies-Bouldin index computed on embedding coordinates.',
+    labelNote: 'Labels used here only — post-analysis evaluation',
+  },
+]
+
+
+/* ─────────────────────────────────────────────────────────────────
+   Sub-components
+───────────────────────────────────────────────────────────────── */
+
+function SidebarItem({ mod }: { mod: Module }) {
+  const dot: Record<ModuleStatus, string> = {
+    'available':       'bg-forest-700',
+    'in-development':  'bg-sage-400',
+    'planned':         'bg-surface-border',
+  }
+
   return (
-    <div className="bg-brand-white p-6 flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-text-muted">{id}</span>
-        <StatusPill status={status} />
+    <div className="flex items-center gap-2.5 px-4 py-1.5 text-sm text-text-secondary
+                    hover:bg-surface-overlay hover:text-text-primary cursor-default
+                    transition-colors duration-150 group">
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot[mod.status]}`} />
+      <span className="truncate">{mod.label}</span>
+    </div>
+  )
+}
+
+function ModuleCard({ mod }: { mod: Module }) {
+  return (
+    <div className="bg-brand-white p-6 flex flex-col gap-3">
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-mono text-[10px] text-text-muted">{mod.id}</span>
+        <StatusPill status={mod.status} />
       </div>
-      <p className="text-sm font-medium text-text-primary leading-snug">{label}</p>
+      <div>
+        <p className="text-sm font-medium text-text-primary leading-snug mb-1">
+          {mod.label}
+        </p>
+        <p className="text-xs text-text-muted leading-relaxed">{mod.desc}</p>
+      </div>
     </div>
   )
 }
 
 function StatusPill({ status }: { status: ModuleStatus }) {
-  if (status === 'next') {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium
-                       tracking-wide uppercase rounded-sm bg-forest-900/8 text-forest-900
-                       border border-forest-900/20">
-        <span className="w-1 h-1 rounded-full bg-forest-900 inline-block" />
-        Next
-      </span>
-    )
+  const styles: Record<ModuleStatus, string> = {
+    'available': `bg-forest-900/[0.07] text-forest-900 border-forest-900/20`,
+    'in-development': `bg-sage-200 text-forest-800 border-sage-400`,
+    'planned': `bg-surface-overlay text-text-muted border-surface-border`,
+  }
+  const labels: Record<ModuleStatus, string> = {
+    'available':      'Available',
+    'in-development': 'In Development',
+    'planned':        'Planned',
   }
   return (
-    <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-medium
-                     tracking-wide uppercase rounded-sm bg-surface-overlay text-text-muted
-                     border border-surface-border">
-      Upcoming
+    <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-medium
+                      tracking-wide uppercase rounded-sm border shrink-0 ${styles[status]}`}>
+      {labels[status]}
     </span>
   )
 }
 
-const PIPELINE_STEPS = [
-  { label: 'Upload Dataset' },
-  { label: 'Preprocessing' },
-  { label: 'PCA' },
-  { label: 't-SNE' },
-  { label: 'Evaluation' },
-]
+function LegendItem({ status, label }: { status: ModuleStatus; label: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <StatusPill status={status} />
+      <span className="text-xs text-text-muted">{label}</span>
+    </div>
+  )
+}
 
-/* ── Icons ──────────────────────────────────────────────────── */
+interface PipelineStage {
+  step:      string
+  label:     string
+  note:      string
+  labelNote: string | null
+}
+
+function PipelineRow({
+  stage, isLast,
+}: { stage: PipelineStage; index: number; isLast: boolean }) {
+  return (
+    <div className={`flex items-start gap-0 ${isLast ? '' : 'border-b border-surface-border'}`}>
+      {/* Step number */}
+      <div className="w-14 shrink-0 flex items-start justify-center py-5 border-r border-surface-border">
+        <span className="font-mono text-xs text-text-muted">{stage.step}</span>
+      </div>
+
+      {/* Label */}
+      <div className="w-36 shrink-0 px-5 py-5 border-r border-surface-border">
+        <span className="text-sm font-medium text-text-primary">{stage.label}</span>
+      </div>
+
+      {/* Note */}
+      <div className="flex-1 px-5 py-5 flex flex-wrap items-start gap-3">
+        <p className="text-sm text-text-secondary leading-relaxed flex-1 min-w-0">
+          {stage.note}
+        </p>
+        {stage.labelNote && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px]
+                           font-medium tracking-wide rounded-sm shrink-0
+                           bg-sage-200 text-forest-800 border border-sage-400">
+            <TagIcon className="w-2.5 h-2.5" />
+            {stage.labelNote}
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+/* ─────────────────────────────────────────────────────────────────
+   Icons
+───────────────────────────────────────────────────────────────── */
+function SidebarIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="1" y="1" width="14" height="14" rx="1.5"
+            stroke="currentColor" strokeWidth="1.3"/>
+      <line x1="5.5" y1="1" x2="5.5" y2="15"
+            stroke="currentColor" strokeWidth="1.3"/>
+    </svg>
+  )
+}
 
 function ArrowLeft({ className = '' }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="none" className={className}
          xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M13 8H3M7 12l-4-4 4-4" stroke="currentColor"
-            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function ArrowRight({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" className={className}
-         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor"
-            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   )
 }
@@ -229,7 +491,29 @@ function UploadIcon({ className = '' }: { className?: string }) {
     <svg viewBox="0 0 16 16" fill="none" className={className}
          xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M8 10V3M5 6l3-3 3 3M3 11v1.5A1.5 1.5 0 004.5 14h7a1.5 1.5 0 001.5-1.5V11"
-            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+function InfoIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className}
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M8 7.5v4M8 5.5v.5" stroke="currentColor"
+            strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  )
+}
+
+function TagIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 12 12" fill="none" className={className}
+         xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M1 1h4.5L11 6.5 6.5 11 1 5.5V1z" stroke="currentColor"
+            strokeWidth="1.2" strokeLinejoin="round"/>
+      <circle cx="3.5" cy="3.5" r="0.75" fill="currentColor"/>
     </svg>
   )
 }

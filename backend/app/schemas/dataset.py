@@ -2,7 +2,7 @@
 Pydantic schemas for the Dataset API.
 """
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -10,6 +10,19 @@ from pydantic import BaseModel, ConfigDict, field_validator
 ColumnRole = str  # "sensor" | "sample_id" | "category" | "ignored"
 
 VALID_ROLES = {"sensor", "sample_id", "category", "ignored"}
+
+# ── Measurement type enum ─────────────────────────────────────────
+MeasurementType = Literal[
+    "electronic_tongue",
+    "electronic_nose",
+    "chemical_analysis",
+]
+
+VALID_MEASUREMENT_TYPES: set[str] = {
+    "electronic_tongue",
+    "electronic_nose",
+    "chemical_analysis",
+}
 
 
 # ── Upload response ───────────────────────────────────────────────
@@ -63,6 +76,10 @@ class DatasetSummary(BaseModel):
     column_count:        int
     sensor_column_count: int
     missing_value_count: int
+    # Scientific metadata — included so the Data Explorer can classify
+    # datasets correctly without requiring a second detail fetch.
+    measurement_type:    str | None
+    source_attribution:  str | None
     created_at:          datetime
 
 
@@ -81,8 +98,34 @@ class DatasetDetail(BaseModel):
     missing_value_count: int
     column_roles:        str   # raw JSON string — parsed client-side
     notes:               str | None
+    # ── Scientific metadata ───────────────────────────────────
+    measurement_type:    str | None  # electronic_tongue | electronic_nose | chemical_analysis
+    source_attribution:  str | None  # research citation / DOI
+    column_units:        str | None  # raw JSON {"col": "unit"} — parsed client-side
     created_at:          datetime
     updated_at:          datetime
+
+
+# ── Scientific metadata update ────────────────────────────────────
+
+class MetadataUpdateRequest(BaseModel):
+    """
+    Optional fields for updating scientific metadata on a dataset.
+    All fields are optional — only supplied fields are changed.
+    """
+    measurement_type:   str | None = None
+    source_attribution: str | None = None
+    column_units:       dict[str, str] | None = None  # {column_name: unit_string}
+
+    @field_validator("measurement_type")
+    @classmethod
+    def validate_measurement_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in VALID_MEASUREMENT_TYPES:
+            raise ValueError(
+                f"Invalid measurement_type '{v}'. "
+                f"Must be one of {sorted(VALID_MEASUREMENT_TYPES)}."
+            )
+        return v
 
 
 # ── Preview ───────────────────────────────────────────────────────
@@ -102,3 +145,39 @@ class DatasetPreview(BaseModel):
 class DeleteResponse(BaseModel):
     deleted_id: str
     message:    str
+
+
+# ── Statistics ────────────────────────────────────────────────────
+
+class HistogramData(BaseModel):
+    """Pre-computed histogram bins and frequencies for a sensor column."""
+    bin_edges:    list[float]   # n+1 edges for n bins
+    bin_centers:  list[float]   # n centers (midpoints of adjacent edges)
+    frequencies:  list[int]      # n counts, one per bin
+
+
+class SensorStatistics(BaseModel):
+    """Descriptive statistics for a single sensor column."""
+    column:         str
+    count:          int
+    mean:           float
+    std:            float
+    min:            float
+    q1:             float       # 25th percentile
+    median:         float       # 50th percentile
+    q3:             float       # 75th percentile
+    max:            float
+    variance:       float
+    skewness:       float
+    kurtosis:       float       # excess kurtosis (Fisher's definition)
+    missing_count:  int
+    histogram:      HistogramData
+
+
+class StatisticsResponse(BaseModel):
+    """Per-sensor statistics for an uploaded dataset."""
+    dataset_id:      str
+    dataset_name:    str
+    row_count:       int
+    sensor_columns:  list[str]
+    statistics:      list[SensorStatistics]

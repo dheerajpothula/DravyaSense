@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from fastapi import UploadFile
+from scipy import stats as scipy_stats
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,6 +30,10 @@ from app.schemas.dataset import (
     DatasetDetail,
     DatasetPreview,
     DatasetSummary,
+    HistogramData,
+    MetadataUpdateRequest,
+    SensorStatistics,
+    StatisticsResponse,
     UploadAnalysis,
 )
 from app.services.column_detector import (
@@ -300,3 +305,142 @@ async def _get_or_404(dataset_id: str, db: AsyncSession) -> Dataset:
     if dataset is None:
         raise LookupError(f"Dataset '{dataset_id}' not found.")
     return dataset
+
+
+# ─────────────────────────────────────────────────────────────────
+# Statistics
+# ─────────────────────────────────────────────────────────────────
+
+_N_BINS = 20  # fixed bin count for consistent visualisation
+
+
+async def get_statistics(
+    dataset_id: str,
+    db: AsyncSession,
+) -> StatisticsResponse:
+    """
+    Compute descriptive statistics and histogram data for every sensor
+    column in the dataset.  Only columns whose stored role is 'sensor'
+    are included — sample_id and category columns are excluded.
+    """
+    dataset   = await _get_or_404(dataset_id, db)
+    file_path = settings.upload_dir_abs / dataset.stored_filename
+
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"Raw file for dataset '{dataset_id}' not found on disk. "
+            "The file may have been moved or deleted outside the platform."
+        )
+
+    suffix = Path(dataset.stored_filename).suffix.lower()
+    df = _parse_file(file_path.read_bytes(), suffix)
+
+    # Identify sensor columns from the stored column-role assignments
+    roles = json.loads(dataset.column_roles)
+    sensor_cols = [
+        col for col, role in roles.items()
+        if role == "sensor" and col in df.columns
+    ]
+
+    stats_list: list[SensorStatistics] = []
+
+    for col in sensor_cols:
+        series    = df[col]
+        non_null  = series.dropna()
+        n_missing = int(series.isna().sum())
+
+        # ── All values missing ─────────────────────────────────
+        if len(non_null) == 0:
+            stats_list.append(SensorStatistics(
+                column=col, count=0, mean=0.0, std=0.0, min=0.0,
+                q1=0.0, median=0.0, q3=0.0, max=0.0, variance=0.0,
+                skewness=0.0, kurtosis=0.0, missing_count=n_missing,
+                histogram=HistogramData(
+                    bin_edges=[], bin_centers=[], frequencies=[]),
+            ))
+            continue
+
+        desc = non_null.describe()
+
+        # Variance — requires at least 2 values
+        variance = float(non_null.var()) if len(non_null) > 1 else 0.0
+        std_val  = float(desc["std"]) if len(non_null) > 1 else 0.0
+
+        # Skewness — requires at least 3 values
+        skewness = 0.0
+        if len(non_null) >= 3:
+            skewness = float(np.nan_to_num(scipy_stats.skew(non_null.values)))
+
+        # Kurtosis — requires at least 4 values
+        kurtosis = 0.0
+        if len(non_null) >= 4:
+            kurtosis = float(np.nan_to_num(scipy_stats.kurtosis(non_null.values)))
+
+        # Histogram
+        n_bins = min(_N_BINS, max(5, len(non_null) - 1))
+        values = non_null.values.astype(float)
+        counts, bin_edges = np.histogram(values, bins=n_bins)
+        bin_centers = ((bin_edges[:-1] + bin_edges[1:]) / 2.0).tolist()
+
+        stats_list.append(SensorStatistics(
+            column=col,
+            count=int(desc["count"]),
+            mean=float(desc["mean"]),
+            std=std_val,
+            min=float(desc["min"]),
+            q1=float(desc["25%"]),
+            median=float(desc["50%"]),
+            q3=float(desc["75%"]),
+            max=float(desc["max"]),
+            variance=variance,
+            skewness=skewness,
+            kurtosis=kurtosis,
+            missing_count=n_missing,
+            histogram=HistogramData(
+                bin_edges=bin_edges.tolist(),
+                bin_centers=bin_centers,
+                frequencies=counts.tolist(),
+            ),
+        ))
+
+    return StatisticsResponse(
+        dataset_id=dataset_id,
+        dataset_name=dataset.original_filename,
+        row_count=len(df),
+        sensor_columns=sensor_cols,
+        statistics=stats_list,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# Scientific metadata update
+# ─────────────────────────────────────────────────────────────────
+
+async def update_metadata(
+    dataset_id: str,
+    body: "MetadataUpdateRequest",
+    db: AsyncSession,
+) -> DatasetDetail:
+    """
+    Update scientific metadata fields (measurement_type, source_attribution,
+    column_units) on an existing dataset record.
+
+    Only fields that are explicitly provided in the request body are
+    written — omitted fields are left unchanged (partial-update semantics).
+    Column roles and the raw uploaded file are never touched.
+    """
+    dataset = await _get_or_404(dataset_id, db)
+
+    if body.measurement_type is not None:
+        dataset.measurement_type = body.measurement_type
+
+    if body.source_attribution is not None:
+        dataset.source_attribution = body.source_attribution
+
+    if body.column_units is not None:
+        dataset.column_units = json.dumps(body.column_units)
+
+    await db.commit()
+    await db.refresh(dataset)
+
+    return DatasetDetail.model_validate(dataset)

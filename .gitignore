@@ -2,6 +2,7 @@
 node_modules/
 dist/
 .vite/
+*.tsbuildinfo
 
 # ── Python / Backend ─────────────────────────────────────────────
 __pycache__/
@@ -28,6 +29,10 @@ backend/data/*.sqlite
 # ── Uploaded files ────────────────────────────────────────────────
 backend/uploads/*
 !backend/uploads/.gitkeep
+
+# ── Processed datasets ────────────────────────────────────────────
+backend/processed/*
+!backend/processed/.gitkeep
 
 # ── OS / Editor ───────────────────────────────────────────────────
 .DS_Store

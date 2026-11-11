@@ -43,6 +43,17 @@ class Dataset(Base):
     # ── Optional user note ────────────────────────────────────
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # ── Scientific metadata ───────────────────────────────────
+    # One of: electronic_tongue | electronic_nose | chemical_analysis | None
+    measurement_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    # Free-text research citation / DOI
+    source_attribution: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Per-column measurement units stored as a JSON string
+    # Schema: {"col_name": "mV"} — only sensor columns need entries
+    column_units: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # ── Timestamps ────────────────────────────────────────────
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -35,7 +35,7 @@ _ID_PATTERN  = re.compile(
 )
 _CAT_PATTERN = re.compile(
     r"\b(category|cat|class|label|type|group|dravya|herb|plant|"
-    r"species|variety|family|genus|treatment)\b",
+    r"species|variety|family|genus|treatment|origin|provenance|source)\b",
     re.IGNORECASE,
 )
 

@@ -33,10 +33,18 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("./uploads")
     max_upload_size_mb: int = 50
 
+    # Processed datasets (output of Preprocessing Studio)
+    processed_dir: Path = Path("./processed")
+
     @property
     def upload_dir_abs(self) -> Path:
         """Return an absolute path to the upload directory."""
         return self.upload_dir.resolve()
+
+    @property
+    def processed_dir_abs(self) -> Path:
+        """Return an absolute path to the processed-datasets directory."""
+        return self.processed_dir.resolve()
 
 
 @lru_cache

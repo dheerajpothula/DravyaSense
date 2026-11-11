@@ -4,13 +4,17 @@ import {
   type DatasetDetail,
   type DatasetPreview,
   type DatasetSummary,
+  type MeasurementType,
+  type MetadataUpdate,
   type UploadAnalysis,
   ApiError,
+  MEASUREMENT_TYPE_LABELS,
   confirmRoles,
   deleteDataset,
   getDataset,
   getPreview,
   listDatasets,
+  updateMetadata,
   uploadDataset,
 } from '../../api/datasets'
 import ColumnRoleEditor from '../../components/ColumnRoleEditor'
@@ -271,6 +275,7 @@ export default function DatasetsPage() {
               onPageChange={(p) => loadPreview(selected.id, p)}
               onUploadAnother={resetUpload}
               onDelete={() => setDeleteTarget(selected.id)}
+              onMetadataUpdate={setSelected}
             />
           )}
         </div>
@@ -343,19 +348,65 @@ export default function DatasetsPage() {
 
 function DatasetDetailPanel({
   dataset, preview, previewPage, previewLoading, onPageChange, onUploadAnother, onDelete,
+  onMetadataUpdate,
 }: {
-  dataset:        DatasetDetail
-  preview:        DatasetPreview | null
-  previewPage:    number
-  previewLoading: boolean
-  onPageChange:   (p: number) => void
-  onUploadAnother: () => void
-  onDelete:       () => void
+  dataset:          DatasetDetail
+  preview:          DatasetPreview | null
+  previewPage:      number
+  previewLoading:   boolean
+  onPageChange:     (p: number) => void
+  onUploadAnother:  () => void
+  onDelete:         () => void
+  onMetadataUpdate: (updated: DatasetDetail) => void
 }) {
   const roles: Record<string, string> = JSON.parse(dataset.column_roles || '{}')
   const sensors  = Object.entries(roles).filter(([, r]) => r === 'sensor').map(([c]) => c)
   const sampleId = Object.entries(roles).filter(([, r]) => r === 'sample_id').map(([c]) => c)
   const category = Object.entries(roles).filter(([, r]) => r === 'category').map(([c]) => c)
+
+  // ── Inline metadata editing state ─────────────────────────
+  const [editingMeta,     setEditingMeta]     = useState(false)
+  const [savingMeta,      setSavingMeta]       = useState(false)
+  const [metaError,       setMetaError]        = useState<string | null>(null)
+
+  const [draftType,        setDraftType]        = useState<MeasurementType | ''>(
+    (dataset.measurement_type as MeasurementType) ?? ''
+  )
+  const [draftAttribution, setDraftAttribution] = useState(dataset.source_attribution ?? '')
+  const [draftUnits,       setDraftUnits]       = useState<Record<string, string>>(
+    dataset.column_units ? JSON.parse(dataset.column_units) : {}
+  )
+
+  // Reset drafts if dataset prop changes (e.g. selecting a different dataset)
+  useEffect(() => {
+    setDraftType((dataset.measurement_type as MeasurementType) ?? '')
+    setDraftAttribution(dataset.source_attribution ?? '')
+    setDraftUnits(dataset.column_units ? JSON.parse(dataset.column_units) : {})
+    setEditingMeta(false)
+    setMetaError(null)
+  }, [dataset.id])
+
+  const handleSaveMeta = useCallback(async () => {
+    setSavingMeta(true)
+    setMetaError(null)
+    try {
+      const body: MetadataUpdate = {
+        measurement_type:   draftType     || null,
+        source_attribution: draftAttribution.trim() || null,
+        column_units:       Object.keys(draftUnits).length > 0 ? draftUnits : null,
+      }
+      const updated = await updateMetadata(dataset.id, body)
+      onMetadataUpdate(updated)
+      setEditingMeta(false)
+    } catch (err) {
+      setMetaError(err instanceof ApiError ? err.message : 'Could not save metadata.')
+    } finally {
+      setSavingMeta(false)
+    }
+  }, [dataset.id, draftType, draftAttribution, draftUnits, onMetadataUpdate])
+
+  const parsedUnits: Record<string, string> =
+    dataset.column_units ? JSON.parse(dataset.column_units) : {}
 
   return (
     <div className="flex flex-col gap-4">
@@ -399,7 +450,7 @@ function DatasetDetailPanel({
           <StatCell label="Uploaded" value={new Date(dataset.created_at).toLocaleDateString()} />
         </div>
 
-        {/* Role summary */}
+        {/* Column role summary */}
         <div className="px-6 py-4 border-t border-surface-border">
           <p className="text-xs font-medium text-text-muted uppercase tracking-[0.1em] mb-3">
             Column roles
@@ -409,6 +460,170 @@ function DatasetDetailPanel({
             <RoleRow icon="ID" label="Sample ID" cols={sampleId} color="text-text-secondary" />
             <RoleRow icon="C" label="Category" cols={category} color="text-text-secondary" />
           </div>
+        </div>
+
+        {/* ── Scientific metadata section ─────────────────────── */}
+        <div className="px-6 py-4 border-t border-surface-border">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-text-muted uppercase tracking-[0.1em]">
+              Research metadata
+            </p>
+            {!editingMeta && (
+              <button
+                onClick={() => setEditingMeta(true)}
+                className="text-xs text-text-muted hover:text-text-primary
+                           underline underline-offset-2 transition-colors duration-150"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+
+          {!editingMeta ? (
+            /* ── Read-only view ─────────────────────────────── */
+            <div className="flex flex-col gap-2">
+              <MetaRow
+                label="Measurement type"
+                value={
+                  dataset.measurement_type
+                    ? MEASUREMENT_TYPE_LABELS[dataset.measurement_type as MeasurementType]
+                    : null
+                }
+              />
+              <MetaRow label="Source" value={dataset.source_attribution} />
+              {/* Per-sensor column units */}
+              {sensors.length > 0 && (
+                <div className="flex items-start gap-3 mt-1">
+                  <span className="text-xs text-text-muted w-28 shrink-0 pt-0.5">
+                    Column units
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {sensors.map((col) => (
+                      <span
+                        key={col}
+                        className="inline-flex items-center gap-1 px-2 py-0.5
+                                   bg-surface-overlay border border-surface-border
+                                   rounded-sm text-[10px] font-mono"
+                      >
+                        <span className="text-text-secondary">{col}</span>
+                        {parsedUnits[col] ? (
+                          <>
+                            <span className="text-text-muted">·</span>
+                            <span className="text-forest-900 font-medium">{parsedUnits[col]}</span>
+                          </>
+                        ) : (
+                          <span className="text-text-muted italic">—</span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ── Edit form ──────────────────────────────────── */
+            <div className="flex flex-col gap-4">
+              {/* Measurement type */}
+              <div>
+                <label className="text-xs text-text-muted block mb-1.5">
+                  Measurement type
+                </label>
+                <select
+                  value={draftType}
+                  onChange={(e) => setDraftType(e.target.value as MeasurementType | '')}
+                  className="w-full text-sm border border-surface-border rounded-sm
+                             px-3 py-1.5 bg-brand-white text-text-primary
+                             focus:outline-none focus:border-forest-900/40"
+                >
+                  <option value="">— not set —</option>
+                  <option value="electronic_tongue">Electronic Tongue</option>
+                  <option value="electronic_nose">Electronic Nose</option>
+                  <option value="chemical_analysis">Chemical Analysis</option>
+                </select>
+              </div>
+
+              {/* Source attribution */}
+              <div>
+                <label className="text-xs text-text-muted block mb-1.5">
+                  Source attribution
+                </label>
+                <input
+                  type="text"
+                  value={draftAttribution}
+                  onChange={(e) => setDraftAttribution(e.target.value)}
+                  placeholder="e.g. DOI or full citation"
+                  className="w-full text-sm border border-surface-border rounded-sm
+                             px-3 py-1.5 bg-brand-white text-text-primary
+                             placeholder:text-text-muted
+                             focus:outline-none focus:border-forest-900/40"
+                />
+              </div>
+
+              {/* Per-column units — only sensor columns */}
+              {sensors.length > 0 && (
+                <div>
+                  <label className="text-xs text-text-muted block mb-2">
+                    Column units <span className="text-text-muted font-normal">(sensor columns)</span>
+                  </label>
+                  <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+                    {sensors.map((col) => (
+                      <div key={col} className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-text-secondary w-40 truncate shrink-0">
+                          {col}
+                        </span>
+                        <input
+                          type="text"
+                          value={draftUnits[col] ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setDraftUnits((prev) => {
+                              const next = { ...prev }
+                              if (val) next[col] = val
+                              else delete next[col]
+                              return next
+                            })
+                          }}
+                          placeholder="unit"
+                          aria-label={`Unit for ${col}`}
+                          className="flex-1 text-xs border border-surface-border rounded-sm
+                                     px-2 py-1 bg-brand-white text-text-primary
+                                     placeholder:text-text-muted
+                                     focus:outline-none focus:border-forest-900/40"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Error message */}
+              {metaError && (
+                <p className="text-xs text-red-600">{metaError}</p>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSaveMeta}
+                  disabled={savingMeta}
+                  className="text-xs px-3 py-1.5 bg-forest-900 text-brand-white rounded-sm
+                             hover:bg-forest-800 transition-colors duration-150
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {savingMeta ? 'Saving…' : 'Save metadata'}
+                </button>
+                <button
+                  onClick={() => { setEditingMeta(false); setMetaError(null) }}
+                  disabled={savingMeta}
+                  className="text-xs px-3 py-1.5 border border-surface-border rounded-sm
+                             text-text-secondary hover:text-text-primary
+                             transition-colors duration-150"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -456,6 +671,17 @@ function RoleRow({
       <span className="text-xs text-text-muted w-20 shrink-0">{label}</span>
       <span className="text-xs text-text-secondary font-mono leading-relaxed">
         {cols.join(', ')}
+      </span>
+    </div>
+  )
+}
+
+function MetaRow({ label, value }: { label: string; value: string | null | undefined }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="text-xs text-text-muted w-28 shrink-0 pt-0.5">{label}</span>
+      <span className={`text-xs leading-relaxed ${value ? 'text-text-secondary' : 'text-text-muted italic'}`}>
+        {value ?? '—'}
       </span>
     </div>
   )

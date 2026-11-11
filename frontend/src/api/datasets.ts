@@ -32,15 +32,23 @@ export interface DatasetSummary {
   column_count:        number
   sensor_column_count: number
   missing_value_count: number
+  // Scientific metadata — present from the list endpoint so the Data Explorer
+  // can classify datasets without an extra detail fetch.
+  measurement_type:    string | null
+  source_attribution:  string | null
   created_at:          string
 }
 
 export interface DatasetDetail extends DatasetSummary {
-  stored_filename: string
-  mime_type:       string
-  column_roles:    string   // raw JSON — parse with JSON.parse()
-  notes:           string | null
-  updated_at:      string
+  stored_filename:     string
+  mime_type:           string
+  column_roles:        string   // raw JSON — parse with JSON.parse()
+  notes:               string | null
+  // ── Scientific metadata ──────────────────────────────────
+  measurement_type:    string | null  // 'electronic_tongue' | 'electronic_nose' | 'chemical_analysis'
+  source_attribution:  string | null  // research citation / DOI
+  column_units:        string | null  // raw JSON {"col": "unit"} — parse with JSON.parse()
+  updated_at:          string
 }
 
 export interface DatasetPreview {
@@ -69,7 +77,7 @@ export class ApiError extends Error {
   }
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
+export async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     let detail = `HTTP ${res.status}`
     try {
@@ -128,4 +136,73 @@ export async function getPreview(
 export async function deleteDataset(id: string): Promise<DeleteResponse> {
   const res = await fetch(`/api/datasets/${id}`, { method: 'DELETE' })
   return handleResponse<DeleteResponse>(res)
+}
+
+// ── Statistics ────────────────────────────────────────────────────
+
+export interface HistogramData {
+  bin_edges:   number[]
+  bin_centers: number[]
+  frequencies: number[]
+}
+
+export interface SensorStatistics {
+  column:        string
+  count:         number
+  mean:          number
+  std:           number
+  min:           number
+  q1:            number
+  median:        number
+  q3:            number
+  max:           number
+  variance:      number
+  skewness:      number
+  kurtosis:      number
+  missing_count: number
+  histogram:     HistogramData
+}
+
+export interface StatisticsResponse {
+  dataset_id:     string
+  dataset_name:   string
+  row_count:      number
+  sensor_columns: string[]
+  statistics:     SensorStatistics[]
+}
+
+export async function getStatistics(datasetId: string): Promise<StatisticsResponse> {
+  const res = await fetch(`/api/datasets/${datasetId}/statistics`)
+  return handleResponse<StatisticsResponse>(res)
+}
+
+// ── Scientific metadata ────────────────────────────────────────────
+
+export type MeasurementType =
+  | 'electronic_tongue'
+  | 'electronic_nose'
+  | 'chemical_analysis'
+
+export const MEASUREMENT_TYPE_LABELS: Record<MeasurementType, string> = {
+  electronic_tongue:  'Electronic Tongue',
+  electronic_nose:    'Electronic Nose',
+  chemical_analysis:  'Chemical Analysis',
+}
+
+export interface MetadataUpdate {
+  measurement_type?:   MeasurementType | null
+  source_attribution?: string | null
+  column_units?:       Record<string, string> | null
+}
+
+export async function updateMetadata(
+  id: string,
+  body: MetadataUpdate,
+): Promise<DatasetDetail> {
+  const res = await fetch(`/api/datasets/${id}/metadata`, {
+    method:  'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  })
+  return handleResponse<DatasetDetail>(res)
 }

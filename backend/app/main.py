@@ -16,7 +16,13 @@ from app.config import get_settings
 from app.database import init_db
 from app.routers import health
 from app.routers import datasets
+from app.routers import preprocessing
+from app.routers import pca
+from app.routers import tsne
 import app.models.dataset  # noqa: F401 — ensures table is registered with Base.metadata
+import app.models.processed_dataset  # noqa: F401
+import app.models.pca_experiment  # noqa: F401
+import app.models.tsne_experiment  # noqa: F401
 
 # ── Logging ──────────────────────────────────────────────────────
 logging.basicConfig(
@@ -67,10 +73,10 @@ async def on_shutdown() -> None:
 # ── Routers ───────────────────────────────────────────────────────
 app.include_router(health.router)
 app.include_router(datasets.router)
+app.include_router(preprocessing.router)
+app.include_router(pca.router)
+app.include_router(tsne.router)
 
 # Future routers (added as each module is implemented):
-# app.include_router(preprocessing.router)
-# app.include_router(pca.router)
-# app.include_router(tsne.router)
 # app.include_router(evaluation.router)
 # app.include_router(reports.router)

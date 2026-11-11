@@ -36,22 +36,22 @@ const MODULES: Module[] = [
   {
     id: '02', label: 'Data Explorer',
     desc:   'Preview raw data, descriptive statistics, distribution plots.',
-    status: 'in-development', path: '/dashboard/explorer', group: 'data',
+    status: 'available', path: '/dashboard/explorer', group: 'data',
   },
   {
     id: '03', label: 'Preprocessing Studio',
     desc:   'Configure scaling, imputation and outlier handling per experiment.',
-    status: 'planned', path: '/dashboard/preprocess', group: 'data',
+    status: 'available', path: '/dashboard/preprocess', group: 'data',
   },
   {
     id: '04', label: 'PCA Analysis',
     desc:   'Run PCA, inspect explained variance, component loadings and scatter.',
-    status: 'planned', path: '/dashboard/pca', group: 'analysis',
+    status: 'available', path: '/dashboard/pca', group: 'analysis',
   },
   {
     id: '05', label: 't-SNE Analysis',
     desc:   'Configure perplexity, learning rate and seed; explore 2D/3D embeddings.',
-    status: 'planned', path: '/dashboard/tsne', group: 'analysis',
+    status: 'available', path: '/dashboard/tsne', group: 'analysis',
   },
   {
     id: '06', label: 'PCA vs t-SNE',
@@ -276,8 +276,8 @@ export function DashboardHome() {
                       bg-surface-overlay border border-surface-border rounded-sm">
         <InfoIcon className="w-4 h-4 text-text-muted shrink-0 mt-0.5" />
         <p className="text-sm text-text-secondary leading-relaxed">
-          <span className="font-medium text-text-primary">Dataset Management is now available.</span>
-          {' '}Data Explorer is being built next. All other modules are designed and planned.
+          <span className="font-medium text-text-primary">Dataset Management and Data Explorer are now available.</span>
+          {' '}All other modules are designed and planned.
         </p>
       </div>
 

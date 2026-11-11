@@ -3,6 +3,10 @@ import Landing from './pages/Landing'
 import Dashboard from './pages/Dashboard'
 import { DashboardHome } from './pages/Dashboard'
 import DatasetsPage from './pages/datasets/DatasetsPage'
+import DataExplorerPage from './pages/datasets/DataExplorerPage'
+import PreprocessingPage from './pages/preprocessing/PreprocessingPage'
+import PCAPage from './pages/pca/PCAPage'
+import TSNEPage from './pages/tsne/TSNEPage'
 import ScrollToTop from './components/ScrollToTop'
 
 function App() {
@@ -19,13 +23,11 @@ function App() {
         <Route index element={<DashboardHome />} />
 
         {/* Module routes */}
-        <Route path="datasets" element={<DatasetsPage />} />
-
-        {/* Future modules — add here as they are built */}
-        {/* <Route path="explorer"   element={<DataExplorerPage />} /> */}
-        {/* <Route path="preprocess" element={<PreprocessingPage />} /> */}
-        {/* <Route path="pca"        element={<PCAPage />} /> */}
-        {/* <Route path="tsne"       element={<TSNEPage />} /> */}
+        <Route path="datasets"   element={<DatasetsPage />} />
+        <Route path="explorer"   element={<DataExplorerPage />} />
+        <Route path="preprocess" element={<PreprocessingPage />} />
+        <Route path="pca"        element={<PCAPage />} />
+        <Route path="tsne"       element={<TSNEPage />} />
         {/* <Route path="compare"    element={<ComparePage />} /> */}
         {/* <Route path="evaluation" element={<EvaluationPage />} /> */}
         {/* <Route path="history"    element={<HistoryPage />} /> */}
